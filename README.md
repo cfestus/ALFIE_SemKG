@@ -42,6 +42,6 @@ Create a .env file in the root directory and add your OpenAI API key, that is yo
    OPENAI_API_KEY="your_api_key_here"
 
 5. **Usage**:
-Once you have completed the setup, run the main script to generate annotations.
+Once you have completed the setup, run the main script to Semantic Knowledge Graphs.
    ```bash
    run main.py

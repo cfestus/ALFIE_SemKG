@@ -1,0 +1,16 @@
+# Compiled runtime lockfile (pip-tools style)
+# Source: requirements.in
+openai==1.14.0
+#rdflib==7.0.0
+rdflib==6.3.2
+pyshacl==0.23.0
+requests==2.31.0
+jsonschema==4.17.0
+python-dotenv==1.0.0
+networkx==3.0
+tqdm==4.65.0
+tenacity==8.2.0
+openai==1.14.0
+httpx==0.27.2
+httpcore==1.0.9
+tiktoken==0.12.0

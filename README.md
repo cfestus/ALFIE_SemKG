@@ -15,7 +15,8 @@ licence:
 copyright: "Copyright (c) 2026 ALFIE"
 contributor:
   - Chukwudi "Festus" Uwasomba <https://github.com/cfestus>
-
+  - Nonso Nnamoko
+  - Yannis Korkontzelos
 credits:
   - https://github.com/cfestus
 ---
@@ -23,3 +24,24 @@ credits:
 ## Prerequisites
 - Python 3.x
 - OpenAI API key
+
+## To run the code 
+
+1. **Clone the Repository**:
+   ```bash
+   git clone <repository-url>
+   cd <repository-directory>
+
+2. **Install Dependencies**:
+   ```bash
+   pip install -r requirements.txt.
+
+4. **API Configuration**:
+Create a .env file in the root directory and add your OpenAI API key, that is your GPT-4 API.
+   ```bash
+   OPENAI_API_KEY="your_api_key_here"
+
+5. **Usage**:
+Once you have completed the setup, run the main script to generate annotations.
+   ```bash
+   run main.py

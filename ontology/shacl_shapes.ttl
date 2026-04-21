@@ -1,0 +1,654 @@
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix sh:    <http://www.w3.org/ns/shacl#> .
+@prefix prov:  <http://www.w3.org/ns/prov#> .
+@prefix etd:   <https://alfie-project.eu/etd-hub#> .
+
+###############################################################################
+# 0. ENTITY SHAPE (PRODUCTION-ALIGNED)
+#
+# Production KG guarantee (your serializer closure):
+# - every referenced node exists and is typed
+# - keep severity moderate to avoid breaking early data
+###############################################################################
+
+etd:EntityShape
+    a sh:NodeShape ;
+    sh:targetClass etd:Entity ;
+
+    # Entities SHOULD have a label (agent-friendly)
+    sh:property [
+        sh:path rdfs:label ;
+        sh:datatype rdf:langString ;
+        sh:languageIn ("en") ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Warning ;
+        sh:message "Entities SHOULD have exactly one rdfs:label (@en)."
+        ] ;
+
+    # discourse_id (recommended for traceability)
+    sh:property [
+        sh:path etd:discourse_id ;
+        sh:datatype xsd:integer ;
+        sh:severity sh:Violation ;
+        sh:message "Entity discourse_id values MUST be xsd:integer when present (multi-valued allowed for multi-discourse entities)."
+    ] ;
+
+    # context_source (optional but recommended)
+    sh:property [
+        sh:path etd:context_source ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:severity sh:Info ;
+        sh:message "context_source is recommended for provenance."
+    ] ;
+
+    # ontology_uri (production: should be an IRI if present)
+    sh:property [
+        sh:path etd:ontology_uri ;
+        sh:nodeKind sh:IRI ;
+        sh:maxCount 1 ;
+        sh:severity sh:Warning ;
+        sh:message "ontology_uri SHOULD be a single IRI (expanded), not a literal or list."
+    ] ;
+
+    # wikidata_uri (optional)
+    sh:property [
+        sh:path etd:wikidata_uri ;
+        sh:nodeKind sh:IRI ;
+        sh:maxCount 1 ;
+        sh:severity sh:Info ;
+        sh:message "wikidata_uri should be a single Wikidata IRI when present."
+    ] ;
+
+    sh:property [
+        sh:path etd:wikidataLabel ;
+        sh:maxCount 1 ;
+        sh:datatype rdf:langString ;
+        sh:severity sh:Info ;
+        sh:message "wikidataLabel should be rdf:langString when present."
+    ] ;
+
+    sh:property [
+        sh:path etd:wikidataDescription ;
+        sh:maxCount 1 ;
+        sh:datatype rdf:langString ;
+        sh:severity sh:Info ;
+        sh:message "wikidataDescription should be rdf:langString when present."
+    ] .
+
+
+###############################################################################
+# 1. RELATION SHAPE (PRODUCTION-GRADE, AGENT-SAFE)
+###############################################################################
+
+etd:RelationShape
+    a sh:NodeShape ;
+    sh:targetClass etd:Relation ;
+
+    # subject — required, must be IRI
+    sh:property [
+        sh:path etd:subject ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:class etd:Entity ;
+        sh:severity sh:Violation ;
+        sh:message "Relation subject MUST be an IRI (entity node)."
+    ] ;
+
+    # context_source
+    sh:property [
+        sh:path etd:context_source ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:severity sh:Warning ;
+        sh:message "context_source SHOULD be present on Relation nodes for provenance/debugging."
+        ] ;
+
+    # predicate — required, must be IRI
+    sh:property [
+        sh:path etd:predicate ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:nodeKind sh:IRI ;
+        #sh:pattern "^https://alfie-project.eu/etd-hub#" ;
+        sh:severity sh:Violation ;
+        sh:message "Relation predicate MUST be an IRI (etd:<predicate>)."
+    ] ;
+
+    # object — required, IRI or literal (literal only for vote/value/rating cases)
+    sh:property [
+        sh:path etd:object ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Relation object MUST be an IRI (typed entity) or a literal (ratings/values only)." ;
+        sh:or (
+            [ sh:nodeKind sh:Literal ]
+            [ sh:nodeKind sh:IRI ; sh:class etd:Entity ]
+        ) ;
+    ] ;
+
+    # confidence — optional float
+    sh:property [
+        sh:path etd:confidence ;
+        sh:datatype xsd:float ;
+        sh:maxCount 1 ;
+        sh:severity sh:Info ;
+        sh:message "confidence SHOULD be a float when present."
+    ] ;
+
+    # inferred provenance metadata
+    sh:property [
+        sh:path etd:inferenceRule ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:severity sh:Warning ;
+        sh:message "inferenceRule should be a single xsd:string when present."
+    ] ;
+
+    sh:property [
+        sh:path prov:wasDerivedFrom ;
+        sh:nodeKind sh:IRI ;
+        sh:severity sh:Warning ;
+        sh:message "wasDerivedFrom should point to supporting relation/evidence IRIs when present."
+    ] ;
+
+    # Conditional rule: inferred relations must carry provenance.
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "Inferred relations MUST include etd:inferenceRule or prov:wasDerivedFrom." ;
+        sh:select """
+            SELECT $this
+            WHERE {
+                $this etd:isInferred true .
+                FILTER NOT EXISTS { $this etd:inferenceRule ?rule . }
+                FILTER NOT EXISTS { $this prov:wasDerivedFrom ?src . }
+            }
+        """ ;
+    ] ;
+
+    # hasEvidence — required (Change 7)
+    sh:property [
+        sh:path etd:hasEvidence ;
+        sh:minCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:class etd:Evidence ;
+        sh:severity sh:Violation ;
+        sh:message "Relation MUST have at least one Evidence IRI typed as etd:Evidence."
+    ] .
+
+###############################################################################
+# 2. EVIDENCE SHAPE (PRODUCTION-ALIGNED)
+###############################################################################
+
+etd:EvidenceShape
+    a sh:NodeShape ;
+    sh:target [
+        a sh:SPARQLTarget ;
+        sh:select """
+            SELECT DISTINCT ?this
+            WHERE {
+                ?this a etd:Evidence .
+                FILTER(STRSTARTS(STR(?this), "https://alfie-project.eu/etd-hub#evidence_"))
+            }
+        """
+    ] ;
+
+    # extractor/source id (optional metadata)
+    sh:property [
+        sh:path etd:source ;
+        sh:minCount 0 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:severity sh:Info ;
+        sh:message "source is optional provenance metadata."
+    ] ;
+
+    # discourse_id (optional metadata)
+    sh:property [
+        sh:path etd:discourse_id ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:integer ;
+        sh:severity sh:Violation ;
+        sh:message "discourse_id MUST be xsd:integer when present."
+    ] ;
+
+    # evidence text is required by production contract
+    sh:property [
+        sh:path etd:evidenceText ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:severity sh:Violation ;
+        sh:message "Evidence MUST include exactly one evidenceText as xsd:string."
+    ] ;
+
+    # confidence is required by production contract
+    sh:property [
+        sh:path etd:confidence ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:float ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        sh:severity sh:Violation ;
+        sh:message "Evidence MUST include exactly one confidence as xsd:float in [0,1]."
+    ] ;
+
+    sh:property [
+        sh:path etd:evidenceSpan ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:severity sh:Info ;
+        sh:message "evidenceSpan should be xsd:string when present."
+    ] ;
+
+    # field provenance 
+    sh:property [
+        sh:path etd:field ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:severity sh:Info ;
+        sh:message "field is optional (e.g., theme.description, question.body, answer.description)."
+    ] ;
+
+    # streaming metadata (optional)
+    sh:property [
+        sh:path etd:batch_id ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:severity sh:Info ;
+        sh:message "batch_id is optional for streaming ingestion."
+    ] ;
+
+    sh:property [
+        sh:path etd:ingestedAt ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:dateTime ;
+        sh:severity sh:Info ;
+        sh:message "ingestedAt should be xsd:dateTime when present."
+    ] ;
+
+    # offsets / chunking (must be integers when present)
+    sh:property [
+        sh:path etd:chunk_index ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:integer ;
+        sh:severity sh:Info ;
+        sh:message "chunk_index should be an integer when present."
+    ] ;
+
+    sh:property [
+        sh:path etd:chunk_total ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:integer ;
+        sh:severity sh:Info ;
+        sh:message "chunk_total should be an integer when present."
+    ] ;
+
+    sh:property [
+        sh:path etd:chunk_start ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:integer ;
+        sh:severity sh:Info ;
+        sh:message "chunk_start should be an integer when present."
+    ] ;
+
+    sh:property [
+        sh:path etd:start_char ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:integer ;
+        sh:severity sh:Info ;
+        sh:message "start_char should be an integer when present."
+    ] ;
+
+    sh:property [
+        sh:path etd:end_char ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:integer ;
+        sh:severity sh:Info ;
+        sh:message "end_char should be an integer when present."
+    ] .
+
+###############################################################################
+# 3. VOTE SHAPE (PRODUCTION-ALIGNED)
+###############################################################################
+
+etd:VoteShape
+    a sh:NodeShape ;
+    sh:targetClass etd:Vote ;
+
+    sh:property [
+        sh:path etd:castBy ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:class etd:Person ;
+        sh:severity sh:Violation ;
+        sh:message "Vote MUST have exactly one castBy pointing to an etd:Person."
+    ] ;
+
+    sh:property [
+        sh:path etd:receivesVote ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:class etd:Answer ;
+        sh:severity sh:Violation ;
+        sh:message "Vote MUST have exactly one receivesVote (Answer IRI)."
+    ] ;
+
+    sh:property [
+        sh:path etd:voteValue ;
+        sh:maxCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:severity sh:Warning ;
+        sh:message "voteValue SHOULD be a SKOS Concept IRI when present."
+    ] ;
+
+    sh:property [
+        sh:path etd:rawVoteValue ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:integer ;
+        sh:severity sh:Info ;
+        sh:message "rawVoteValue should be xsd:integer when present."
+    ] ;
+
+    sh:property [
+        sh:path etd:polarity ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:severity sh:Info ;
+        sh:message "polarity should be xsd:string when present."
+    ] .
+
+
+###############################################################################
+# 4. ANSWER SHAPE (PRODUCTION-ALIGNED)
+###############################################################################
+
+etd:AnswerShape
+    a sh:NodeShape ;
+    sh:targetClass etd:Answer ;
+
+    sh:property [
+        sh:path etd:text ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:severity sh:Info ;
+        sh:message "text should be xsd:string when present."
+        ] .
+
+###############################################################################
+# 5. QUESTION SHAPE (PRODUCTION-ALIGNED)
+###############################################################################
+
+etd:QuestionShape
+    a sh:NodeShape ;
+    sh:targetClass etd:Question ;
+
+    sh:property [
+        sh:path etd:title ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:severity sh:Info ;
+        sh:message "title should be xsd:string when present."
+    ] ;
+
+    sh:property [
+        sh:path etd:body ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:severity sh:Info ;
+        sh:message "body should be xsd:string when present."
+    ] ;
+
+    sh:property [
+        sh:path etd:belongsToTheme ;
+        sh:maxCount 1 ;
+        sh:nodeKind sh:IRI ;
+        sh:class etd:Theme ;
+        sh:severity sh:Warning ;
+        sh:message "Question SHOULD link to a Theme via belongsToTheme when available."
+    ] .
+
+###############################################################################
+# 6. THEME SHAPE (PRODUCTION-ALIGNED)
+###############################################################################
+
+etd:ThemeShape
+    a sh:NodeShape ;
+    sh:targetClass etd:Theme ;
+
+    sh:property [
+        sh:path etd:name ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:severity sh:Info ;
+        sh:message "name should be xsd:string when present."
+    ] ;
+
+    sh:property [
+        sh:path etd:description ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:severity sh:Info ;
+        sh:message "description should be xsd:string when present."
+    ] .
+
+###############################################################################
+# 7. EXPERT SHAPE (PERMISSIVE)
+###############################################################################
+
+etd:ExpertShape
+    a sh:NodeShape ;
+    sh:targetClass etd:Expert ;
+
+    sh:property [
+        sh:path rdfs:label ;
+        sh:datatype rdf:langString ;
+        sh:maxCount 1 ;
+        sh:severity sh:Warning ;
+        sh:message "Expert SHOULD have a single rdfs:label when present."
+        ] .
+
+
+###############################################################################
+# 8. EXPORT SHAPE (PRODUCTION-ALIGNED)
+###############################################################################
+
+etd:ExportShape
+    a sh:NodeShape ;
+    sh:targetClass etd:Export ;
+
+    sh:property [
+        sh:path rdfs:label ;
+        sh:datatype rdf:langString ;
+        sh:languageIn ("en") ;
+        sh:maxCount 1 ;
+        sh:severity sh:Warning ;
+        sh:message "Expert SHOULD have a single rdfs:label when present."
+    ] ;
+
+    sh:property [
+        sh:path etd:datasetId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Export MUST have exactly one datasetId."
+    ] ;
+
+    sh:property [
+        sh:path etd:runId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Export MUST have exactly one runId."
+    ] ;
+
+    sh:property [
+        sh:path prov:generatedAtTime ;
+        sh:datatype xsd:dateTime ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Warning ;
+        sh:message "Export SHOULD have exactly one generatedAtTime."
+    ] ;
+
+    sh:property [
+        sh:path etd:pipelineVersion ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:severity sh:Info ;
+        sh:message "pipelineVersion should be xsd:string when present."
+    ] ;
+
+    sh:property [
+        sh:path etd:gitCommit ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:severity sh:Info ;
+        sh:message "gitCommit should be xsd:string when present."
+    ] ;
+
+    sh:property [
+        sh:path etd:exportMode ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:severity sh:Info ;
+        sh:message "exportMode should be xsd:string when present."
+    ] .
+
+###############################################################################
+# 9. FIELD ASSERTION SHAPE (PRODUCTION-ALIGNED)
+###############################################################################
+
+etd:FieldAssertionShape
+    a sh:NodeShape ;
+    sh:targetClass etd:FieldAssertion ;
+
+    sh:property [
+        sh:path rdfs:label ;
+        sh:datatype rdf:langString ;
+        sh:languageIn ("en") ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "FieldAssertion MUST have exactly one rdfs:label (@en)."
+    ] ;
+
+    sh:property [
+        sh:path etd:fieldName ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "FieldAssertion MUST have exactly one fieldName."
+    ] ;
+
+    sh:property [
+        sh:path etd:recordId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "FieldAssertion MUST have exactly one recordId."
+    ] ;
+
+    sh:property [
+        sh:path etd:sourceSection ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "FieldAssertion MUST have exactly one sourceSection."
+    ] ;
+
+    sh:property [
+        sh:path etd:assertedPredicate ;
+        sh:nodeKind sh:IRI ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "FieldAssertion MUST have exactly one assertedPredicate IRI."
+    ] ;
+
+    sh:property [
+        sh:path etd:assertedValue ;
+        sh:minCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "FieldAssertion MUST have at least one assertedValue."
+    ] ;
+
+    sh:property [
+        sh:path etd:datasetId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "FieldAssertion MUST have exactly one datasetId."
+    ] ;
+
+    sh:property [
+        sh:path etd:runId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "FieldAssertion MUST have exactly one runId."
+    ] ;
+
+    sh:property [
+        sh:path prov:wasDerivedFrom ;
+        sh:nodeKind sh:IRI ;
+        sh:minCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "FieldAssertion MUST link to export provenance via prov:wasDerivedFrom."
+    ] .
+
+###############################################################################
+# 10. DATASET SHAPE (PRODUCTION-ALIGNED)
+#
+# Updated to target etd:Dataset (NOT local alias etd:Dcat_Dataset).
+###############################################################################
+
+etd:DatasetShape
+    a sh:NodeShape ;
+    sh:targetClass etd:Dataset ;
+
+    sh:property [
+        sh:path etd:partOfDomain ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
+        sh:severity sh:Info ;
+        sh:message "Dataset MAY have partOfDomain."
+    ] ;
+
+    sh:property [
+        sh:path etd:hasRisk ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
+        sh:severity sh:Info ;
+        sh:message "Dataset MAY have hasRisk."
+    ] .
+
+
+###############################################################################
+# 11. REGULATORY REFERENCE SHAPE
+###############################################################################
+
+etd:RegulatoryReferenceShape
+    a sh:NodeShape ;
+    sh:targetClass etd:RegulatoryReference ;
+
+    sh:property [
+        sh:path etd:referenceSpan ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:severity sh:Info ;
+        sh:message "referenceSpan should be a language-tagged string when present."
+    ] .

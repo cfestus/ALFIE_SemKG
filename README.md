@@ -13,7 +13,7 @@ release-number: v1.0
 licence:
   - MIT license
 copyright: "Copyright (c) 2026 ALFIE"
-contributor:
+contributors:
   - Chukwudi "Festus" Uwasomba <https://github.com/cfestus>
   - Nonso Nnamoko
   - Yannis Korkontzelos

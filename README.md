@@ -12,7 +12,7 @@ release-date: 18/03/2026
 release-number: v1.0
 licence:
   - Apache-2.0 license
-copyright: "Copyright (c) 2026 ALFIE"
+copyright: "Copyright (c) 2026 Edge Hill University"
 contributors:
   - Chukwudi "Festus" Uwasomba <https://github.com/cfestus>
   - Nonso Nnamoko

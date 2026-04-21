@@ -11,7 +11,7 @@ project: alfie-project
 release-date: 18/03/2026
 release-number: v1.0
 licence:
-  - MIT license
+  - Apache-2.0 license
 copyright: "Copyright (c) 2026 ALFIE"
 contributors:
   - Chukwudi "Festus" Uwasomba <https://github.com/cfestus>
